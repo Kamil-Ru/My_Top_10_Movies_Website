@@ -15,7 +15,7 @@
     <h1 class="heading">Select Movie</h1>
   {% for move in list_of_move %}
   <p>
-    <a href="{{ url_for('select', move_is_selected='True', select_move=move['title']) }}"> {{ move['title'] }} - {{ move['release_date'] }}</a>
+    <a href="{{ url_for('select', move_id=move['id']) }}"> {{ move['title'] }} - {{ move['release_date'] }}</a>
   </p>
   {% endfor %}
 
