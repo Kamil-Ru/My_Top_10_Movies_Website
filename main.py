@@ -1,10 +1,8 @@
-from pprint import pprint
-
 from flask import Flask, render_template, redirect, url_for, request
 from flask_bootstrap import Bootstrap
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf import FlaskForm
-from wtforms import StringField, SubmitField, IntegerField, FloatField
+from wtforms import StringField, SubmitField, FloatField
 from wtforms.validators import DataRequired
 from password import TMDB_API_KEY
 import requests
@@ -21,18 +19,18 @@ db = SQLAlchemy(app)
 class Movie(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(250), unique=False, nullable=False)
-    year = db.Column(db.Integer, nullable=False)
+    year = db.Column(db.String, nullable=False)
     description = db.Column(db.String(250), nullable=True)
-    rating = db.Column(db.Float, nullable=False)
-    ranking = db.Column(db.Integer, nullable=False)
-    review = db.Column(db.Text, unique=True, nullable=True)
+    rating = db.Column(db.Float, unique=False, nullable=True)
+    ranking = db.Column(db.Integer, unique=False, nullable=True)
+    review = db.Column(db.Text, unique=False, nullable=True)
     img_url = db.Column(db.Text, nullable=False)
 
 
 class RateMovieForm(FlaskForm):
-    rating = FloatField(label='New rating: ', validators=[DataRequired()])
-    review = StringField(label="New review: ", validators=[DataRequired()])
-    submit = SubmitField(label="Submit")
+    rating = FloatField(label="Your Rating Out of 10 e.g. 7.5", validators=[DataRequired()])
+    review = StringField(label="Your Review", validators=[DataRequired()])
+    submit = SubmitField(label="Done")
 
 
 class AddMovieForm(FlaskForm):
@@ -51,44 +49,34 @@ parameters = {
     "query": "move"
 }
 
-"""
-new_movie = Movie(
-    title="Phone Booth",
-    year=2002,
-    description="Publicist Stuart Shepard finds himself trapped in a phone booth, pinned down by an extortionist's sniper rifle. Unable to leave or receive outside help, Stuart's negotiation with the caller leads to a jaw-dropping climax.",
-    rating=7.3,
-    ranking=10,
-    review="My favourite character was the caller.",
-    img_url="https://image.tmdb.org/t/p/w500/tjrX2oWRCM3Tvarz38zlZM7Uc10.jpg"
-)
-
-db.session.add(new_movie)
-db.session.commit()
-"""
-
 
 @app.route("/")
 def home():
-    all_films = Movie.query.all()
+    db.session.query()
+    all_films = Movie.query.order_by(Movie.rating.desc()).all()
+    i = 0
+    for item in all_films:
+        item.ranking = len(all_films) - i
+        i += 1
     return render_template("index.html", all_films=all_films)
 
 
 @app.route("/edit", methods=["GET", "POST"])
 def edit():
+    form = RateMovieForm()
     movie_id = request.args.get('id')
     movie_to_update = Movie.query.get(movie_id)
-
-    form = RateMovieForm()
 
     if request.method == "POST" and form.validate_on_submit():
         movie_to_update.rating = request.form["rating"]
         movie_to_update.review = request.form["review"]
         db.session.commit()
-        return redirect("/")
 
-    form.rating.default = movie_to_update.rating
-    form.review.default = movie_to_update.review
-    form.process()
+        form.rating.default = movie_to_update.rating
+        form.review.default = movie_to_update.review
+        form.process()
+
+        return redirect("/")
 
     return render_template("edit.html", form=form)
 
@@ -106,24 +94,38 @@ def add():
         list_of_move = []
         for move in data['results']:
             list_of_move.append(move)
-            #print(move)
 
         return render_template("select.html", list_of_move=list_of_move)
 
     return render_template("add.html", form=form)
 
 
+@app.route("/delete")
+def delete():
+    movie_id = request.args.get('id')
+    movie_to_delete = Movie.query.get(movie_id)
+    db.session.delete(movie_to_delete)
+    db.session.commit()
+
+    return redirect("/")
+
+
 @app.route("/select", methods=["GET", "POST"])
 def select():
-    print("OK")
     move_id = int(request.args.get('move_id'))
-
     for move in list_of_move:
         if move['id'] == move_id:
-            new_move = Movie(id=move['id'], title=move['title'], year=move['release_date'], description=move['overview'], ranking=move['vote_average'], img_url=f"https://image.tmdb.org/t/p/w500/{move['poster_path']}")
+            new_move = Movie(title=move['title'],
+                             year=move['release_date'],
+                             description=move['overview'],
+                             img_url=f"https://image.tmdb.org/t/p/w500/{move['poster_path']}")
             db.session.add(new_move)
             db.session.commit()
-    return redirect("/")
+            move = Movie.query.filter_by(title=move['title'], year=move['release_date']).first()
+            move_id = move.id
+
+    return redirect(url_for('edit', id=move_id))
+
 
 if __name__ == '__main__':
     app.run(debug=True)
