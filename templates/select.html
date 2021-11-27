@@ -13,9 +13,9 @@
 {% block content %}
 <div class="container">
     <h1 class="heading">Select Movie</h1>
-  {% for move in list_of_move %}
+  {% for movie in list_of_movie %}
   <p>
-    <a href="{{ url_for('select', move_id=move['id']) }}"> {{ move['title'] }} - {{ move['release_date'] }}</a>
+    <a href="{{ url_for('select', movie_id=movie['id']) }}"> {{ movie['title'] }} - {{ movie['release_date'] }}</a>
   </p>
   {% endfor %}
 

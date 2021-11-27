@@ -8,6 +8,8 @@ from password import TMDB_API_KEY
 import requests
 import os
 
+MOVIE_DB_IMAGE_URL = "https://image.tmdb.org/t/p/w500/"
+
 app = Flask(__name__)
 app.config['SECRET_KEY'] = '8BYkEfBA6O6donzWlSihBXox7C0sKR6b'
 app.config['SQLALCHEMY_DATABASE_URI'] = "sqlite:///Movie_database.db"
@@ -53,12 +55,12 @@ parameters = {
 @app.route("/")
 def home():
     db.session.query()
-    all_films = Movie.query.order_by(Movie.rating.desc()).all()
+    all_movies = Movie.query.order_by(Movie.rating.desc()).all()
     i = 0
-    for item in all_films:
-        item.ranking = len(all_films) - i
+    for item in all_movies:
+        item.ranking = len(all_movies) - i
         i += 1
-    return render_template("index.html", all_films=all_films)
+    return render_template("index.html", all_movies=all_movies)
 
 
 @app.route("/edit", methods=["GET", "POST"])
@@ -88,14 +90,13 @@ def add():
     if request.method == "POST" and form.validate_on_submit():
         parameters["query"] = form.title.data
         response = requests.get(TMDB_Endpoint, params=parameters)
-        response.raise_for_status()
         data = response.json()
-        global list_of_move
-        list_of_move = []
-        for move in data['results']:
-            list_of_move.append(move)
+        global list_of_movie
+        list_of_movie = []
+        for movie in data['results']:
+            list_of_movie.append(movie)
 
-        return render_template("select.html", list_of_move=list_of_move)
+        return render_template("select.html", list_of_movie=list_of_movie)
 
     return render_template("add.html", form=form)
 
@@ -106,25 +107,24 @@ def delete():
     movie_to_delete = Movie.query.get(movie_id)
     db.session.delete(movie_to_delete)
     db.session.commit()
-
     return redirect("/")
 
 
 @app.route("/select", methods=["GET", "POST"])
 def select():
-    move_id = int(request.args.get('move_id'))
-    for move in list_of_move:
-        if move['id'] == move_id:
-            new_move = Movie(title=move['title'],
-                             year=move['release_date'],
-                             description=move['overview'],
-                             img_url=f"https://image.tmdb.org/t/p/w500/{move['poster_path']}")
+    movie_id = int(request.args.get('movie_id'))
+    for movie in list_of_movie:
+        if movie['id'] == movie_id:
+            new_move = Movie(title=movie['title'],
+                             year=movie["release_date"].split("-")[0],
+                             description=movie['overview'],
+                             img_url=f"{MOVIE_DB_IMAGE_URL}{movie['poster_path']}")
             db.session.add(new_move)
             db.session.commit()
-            move = Movie.query.filter_by(title=move['title'], year=move['release_date']).first()
-            move_id = move.id
+            movie = Movie.query.filter_by(title=movie['title'], year=movie["release_date"].split("-")[0]).first()
+            movie_id = movie.id
 
-    return redirect(url_for('edit', id=move_id))
+    return redirect(url_for('edit', id=movie_id))
 
 
 if __name__ == '__main__':
